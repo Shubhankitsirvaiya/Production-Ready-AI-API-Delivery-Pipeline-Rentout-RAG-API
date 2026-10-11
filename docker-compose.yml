@@ -1,0 +1,13 @@
+services:
+  rentout-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rentout-rag-chatbot:local
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app/data:/app/app/data
+

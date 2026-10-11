@@ -1,0 +1,59 @@
+name: Docker Image
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/rentout-rag-chatbot"
+          SHA_TAG="${GITHUB_SHA::12}"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            APP_VERSION="${GITHUB_REF_NAME}"
+          else
+            APP_VERSION="$SHA_TAG"
+          fi
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg APP_VERSION="${{ steps.meta.outputs.app_version }}" \
+            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
+            -t "${{ steps.meta.outputs.image }}:latest" \
+            .
+
+      - name: Tag release image
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          docker tag "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" "${{ steps.meta.outputs.image }}:${GITHUB_REF_NAME}"
+
+      - name: Push image tags
+        run: |
+          docker push "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}"
+          docker push "${{ steps.meta.outputs.image }}:latest"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            docker push "${{ steps.meta.outputs.image }}:${GITHUB_REF_NAME}"
+          fi

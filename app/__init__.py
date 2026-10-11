@@ -1,0 +1,2 @@
+"""RentOut RAG Chatbot application."""
+

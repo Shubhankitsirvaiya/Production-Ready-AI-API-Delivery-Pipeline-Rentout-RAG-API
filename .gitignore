@@ -1,0 +1,28 @@
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+*.egg-info/
+*.pyc
+*.pyo
+*.pyd
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Generated/runtime artifacts
+artifacts/
+qa/
+htmlcov/
+.coverage
+.deepeval/
+chroma/
+chroma_db/
+.chroma/
+*.sqlite3
+*.db
+app/data/audit_logs/*.jsonl
+app/data/vector_store/*.json
