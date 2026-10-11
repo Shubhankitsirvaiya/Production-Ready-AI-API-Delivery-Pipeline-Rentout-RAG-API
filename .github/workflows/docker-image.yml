@@ -19,7 +19,9 @@ jobs:
       - name: Set image metadata
         id: meta
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/rentout-rag-chatbot"
+          OWNER="${{ github.repository_owner }}"
+          OWNER_LC="$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          IMAGE="ghcr.io/${OWNER_LC}/rentout-rag-chatbot"
           SHA_TAG="${GITHUB_SHA::12}"
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             APP_VERSION="${GITHUB_REF_NAME}"
