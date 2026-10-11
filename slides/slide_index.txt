@@ -10,3 +10,4 @@
 10_secrets_and_runtime_config.svg
 11_level2_complete_deployment_architecture.svg
 12_project_storyboard.svg
+13_ci_testing_basics.svg
