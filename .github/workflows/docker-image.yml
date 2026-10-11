@@ -1,61 +1,91 @@
+# Workflow name shown in GitHub Actions.
 name: Docker Image
 
+# Define when Docker image publishing should happen.
 on:
+  # Build/push image whenever main receives a commit.
   push:
     branches: ["main"]
+    # Also support release tags such as v1.0.0.
     tags: ["v*.*.*"]
 
+# Grant the workflow enough permission to read code and write GHCR packages.
 permissions:
+  # Needed by checkout.
   contents: read
+  # Needed to push images to GitHub Container Registry.
   packages: write
 
+# Jobs are independent units of workflow work.
 jobs:
+  # Build and push the Docker image.
   build:
+    # Use GitHub's latest Ubuntu runner image.
     runs-on: ubuntu-latest
+    # Steps run sequentially.
     steps:
+      # Download repository source code into the runner.
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Compute Docker image name, tags, and app version.
       - name: Set image metadata
         id: meta
         run: |
+          # Read repository owner from GitHub context.
           OWNER="${{ github.repository_owner }}"
+          # Docker/GHCR repository names must be lowercase.
           OWNER_LC="$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          # Final image path in GitHub Container Registry.
           IMAGE="ghcr.io/${OWNER_LC}/rentout-rag-chatbot"
+          # Use first 12 characters of commit SHA as a traceable image tag.
           SHA_TAG="${GITHUB_SHA::12}"
+          # Release tags get app version equal to the git tag name.
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             APP_VERSION="${GITHUB_REF_NAME}"
+          # Normal branch pushes get app version equal to the short commit SHA.
           else
             APP_VERSION="$SHA_TAG"
           fi
+          # Expose image path to later workflow steps.
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          # Expose SHA tag to later workflow steps.
           echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+          # Expose app version to Docker build args.
           echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
 
+      # Authenticate Docker CLI with GitHub Container Registry.
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
+          # Registry hostname for GitHub packages.
           registry: ghcr.io
+          # GitHub actor is the account that triggered the workflow.
           username: ${{ github.actor }}
+          # GITHUB_TOKEN is automatically provided by GitHub Actions.
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Build the Docker image and apply traceable tags.
       - name: Build image
         run: |
-          docker build \
-            --build-arg APP_VERSION="${{ steps.meta.outputs.app_version }}" \
-            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" \
-            -t "${{ steps.meta.outputs.image }}:latest" \
-            .
+          # This command passes APP_VERSION, creates an immutable SHA tag, creates latest, and uses . as the build context.
+          docker build --build-arg APP_VERSION="${{ steps.meta.outputs.app_version }}" -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" -t "${{ steps.meta.outputs.image }}:latest" .
 
+      # If this run came from a release tag, create an extra semantic version tag.
       - name: Tag release image
         if: startsWith(github.ref, 'refs/tags/')
         run: |
+          # Copy the SHA-tagged image to the release tag name.
           docker tag "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}" "${{ steps.meta.outputs.image }}:${GITHUB_REF_NAME}"
 
+      # Push all relevant tags to GHCR.
       - name: Push image tags
         run: |
+          # Push immutable SHA tag.
           docker push "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}"
+          # Push latest tag.
           docker push "${{ steps.meta.outputs.image }}:latest"
+          # Push release tag only for tag-triggered workflow runs.
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             docker push "${{ steps.meta.outputs.image }}:${GITHUB_REF_NAME}"
           fi

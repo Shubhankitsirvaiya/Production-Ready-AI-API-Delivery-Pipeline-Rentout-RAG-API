@@ -1,29 +1,31 @@
 """Prompt registry access.
 
-Prompts live in `app/data/prompts` today so the project is easy to run locally.
-The function is async and isolated because in a production setup the same call
-could later fetch prompts from LangSmith, a database, or a config service.
+Prompts are local markdown files today. The function is async so this boundary can
+later move to LangSmith or another prompt service without changing route code.
 """
 
+# Keep annotations future-compatible.
 from __future__ import annotations
 
+# asyncio.to_thread lets local file reading avoid blocking the event loop.
 import asyncio
 
+# Settings provide the prompt directory path.
 from app.core.config import get_settings
 
 
 async def load_prompt(prompt_name: str) -> str:
-    """Load a named markdown prompt.
+    """Load a named markdown prompt."""
 
-    Arguments:
-    - prompt_name: File stem inside the prompt directory. For example,
-      `customer_chat` maps to `app/data/prompts/customer_chat.md`.
-    """
+    # Read runtime settings.
     settings = get_settings()
+
+    # Convert logical prompt name into an actual markdown file path.
     prompt_path = settings.prompt_dir / f"{prompt_name}.md"
+
+    # Fail clearly if the prompt registry does not contain the requested file.
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt not found: {prompt_path}")
 
-    # File reads are small here, but using to_thread teaches the same pattern we
-    # would use for slower prompt registries: don't block the event loop.
+    # Read file contents in a worker thread so FastAPI's event loop is not blocked.
     return await asyncio.to_thread(prompt_path.read_text, encoding="utf-8")

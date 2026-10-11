@@ -1,13 +1,21 @@
+# Compose file for running the RentOut API locally with Docker Desktop.
 services:
+  # Service name used by Docker Compose logs and commands.
   rentout-api:
+    # Build the image locally from this repository.
     build:
+      # Use the project root as the Docker build context.
       context: .
+      # Use the Dockerfile in the project root.
       dockerfile: Dockerfile
+    # Give the locally built image a readable name/tag.
     image: rentout-rag-chatbot:local
+    # Load local secrets/settings from .env at container runtime.
     env_file:
       - .env
+    # Map host port 8000 to container port 8000.
     ports:
       - "8000:8000"
+    # Mount app/data so documents, vector store, and logs stay visible locally.
     volumes:
       - ./app/data:/app/app/data
-

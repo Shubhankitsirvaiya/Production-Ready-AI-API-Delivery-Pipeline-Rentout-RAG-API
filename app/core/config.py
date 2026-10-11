@@ -1,77 +1,79 @@
 """Application configuration for the RentOut RAG service.
 
-This file is intentionally small, but it is one of the most important files
-for a production-style project. Instead of hardcoding secrets, paths, model
-names, and tuning values inside route code, every runtime setting is read from
-`.env` or environment variables.
-
-Why this matters in deployment:
-- Local development can use `.env`.
-- Docker Compose can inject the same values into the container.
-- CI/CD and cloud platforms can provide secrets without committing them to git.
+This module explains how the app reads runtime configuration. The main idea is:
+source code should not contain secrets or machine-specific paths. Values like
+`OPENAI_API_KEY`, model names, folder paths, and retrieval tuning parameters are
+loaded from `.env` or environment variables.
 """
 
+# Keep postponed type annotation behavior consistent across Python versions.
 from __future__ import annotations
 
+# lru_cache lets us create the Settings object once and reuse it everywhere.
 from functools import lru_cache
+
+# Path gives typed path objects instead of raw strings for local folders/files.
 from pathlib import Path
 
+# load_dotenv reads key=value pairs from the local `.env` file during dev.
 from dotenv import load_dotenv
+
+# BaseSettings maps environment variables onto a typed Python settings class.
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# Load key=value pairs from `.env` into process environment variables.
-# Pydantic will then map those environment variables onto the Settings class.
+# Load local `.env` values into the process environment before Settings is built.
 load_dotenv()
 
 
+# Settings is the single typed place where runtime configuration is declared.
 class Settings(BaseSettings):
-    """Typed runtime settings used by the FastAPI app and RAG pipeline.
+    """Typed runtime settings used by FastAPI, scripts, and the RAG modules."""
 
-    Each field has a safe default so tests can run without a real `.env`, while
-    sensitive values such as OPENAI_API_KEY can be provided privately at runtime.
-    """
-
-    # Service metadata exposed by /version and OpenAPI docs.
+    # Human-readable app name shown in `/version` and FastAPI `/docs`.
     app_name: str = "RentOut RAG Chatbot"
+
+    # Version value shown by `/version`; Docker builds override this via env var.
     app_version: str = "0.1.0"
 
-    # Secret used by OpenAI SDK calls. This must live in `.env` or deployment
-    # secrets, never in source code.
+    # OpenAI key is optional so tests can run without calling paid APIs.
     openai_api_key: str | None = None
 
-    # Model names are configuration because production teams often change model
-    # versions without changing application logic.
+    # Chat model used for final answer generation.
     openai_chat_model: str = "gpt-5"
+
+    # Embedding model used for both document chunks and user questions.
     openai_embedding_model: str = "text-embedding-3-small"
 
-    # Local folders are used now to make the project easy to demo. The rest of
-    # the code treats them as boundaries that can later become S3, LangSmith,
-    # a managed vector DB, or an external audit service.
+    # Root folder for all local demo data.
     data_dir: Path = Path("app/data")
+
+    # Folder containing markdown prompt templates.
     prompt_dir: Path = Path("app/data/prompts")
+
+    # Folder where JSONL audit events are written.
     audit_log_dir: Path = Path("app/data/audit_logs")
+
+    # Local JSON file that stores chunk text, metadata, and embeddings.
     vector_store_path: Path = Path("app/data/vector_store/rentout_vectors.json")
 
-    # Retrieval controls:
-    # top_k controls how many chunks are passed to the answer model.
-    # chunk_size controls the approximate character budget per chunk.
-    # chunk_overlap keeps context continuity between neighboring chunks.
+    # Default number of retrieved chunks sent to the answer model.
     top_k: int = 5
+
+    # Approximate character budget for each retrievable text chunk.
     chunk_size: int = 900
+
+    # Number of trailing characters repeated into the next chunk.
     chunk_overlap: int = 150
 
-    # extra="ignore" lets this project share a machine with other `.env` keys
-    # without failing validation. That is useful in teaching and multi-project
-    # folders where unrelated settings may already exist.
+    # Tell Pydantic to read `.env`, use UTF-8, and ignore unrelated env vars.
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
+# Cache the Settings object so every import sees one consistent config snapshot.
 @lru_cache
 def get_settings() -> Settings:
-    """Return one cached Settings object per Python process.
+    """Return the app settings object used by the whole process."""
 
-    FastAPI imports this function in many modules. Caching avoids repeatedly
-    parsing `.env` and gives the app a single consistent configuration snapshot.
-    """
+    # Instantiating Settings reads environment variables and applies defaults.
     return Settings()

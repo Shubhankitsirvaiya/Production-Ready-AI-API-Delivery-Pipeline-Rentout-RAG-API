@@ -10,18 +10,29 @@ Run:
 """
 from __future__ import annotations
 
+# Path helps us build operating-system-safe file paths.
 from pathlib import Path
 
+# Document creates and saves Microsoft Word .docx files.
 from docx import Document
+# WD_ALIGN_PARAGRAPH gives named constants for paragraph alignment.
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+# Inches, Pt, and RGBColor let us control margins, font sizes, and colors.
 from docx.shared import Inches, Pt, RGBColor
 
 
+# ROOT points to the repository root by going one folder above scripts/.
 ROOT = Path(__file__).resolve().parents[1]
+# OUT_DIR is where generated knowledge-base documents are stored for ingestion.
 OUT_DIR = ROOT / "app" / "data" / "source_docs"
+# Create the output folder if it does not already exist; do nothing if it exists.
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# DOCUMENTS is the structured source data used to generate the Word corpus.
+# Each dictionary becomes one .docx file.
+# Top-level fields become retrieval metadata such as department and audience.
+# The sections dictionary becomes the natural-language body of the document.
 DOCUMENTS = [
     {
         "file": "rentout_rental_agreement.docx",
@@ -416,8 +427,11 @@ DOCUMENTS = [
 
 def main() -> None:
     """Create every DOCX file declared in DOCUMENTS."""
+    # Loop through every document specification in the in-memory corpus list.
     for spec in DOCUMENTS:
+        # Turn the current dictionary into one formatted .docx file.
         build_document(spec)
+    # Print a short completion message so local runs confirm where files were written.
     print(f"Generated {len(DOCUMENTS)} DOCX files in {OUT_DIR}")
 
 
@@ -428,84 +442,141 @@ def build_document(spec: dict) -> None:
     structured makes it easy to add more policies without editing formatting
     logic.
     """
+    # Start a blank Word document in memory.
     doc = Document()
+    # Apply margins, fonts, heading colors, and other document-level styling.
     set_styles(doc)
 
+    # Add the main title paragraph.
     title = doc.add_paragraph()
+    # Use the Word style configured in set_styles().
     title.style = "Title"
+    # Center the title for a polished business-document layout.
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # Add the actual title text from the document specification.
     run = title.add_run(spec["title"])
+    # Color the title with RentOut's teal accent.
     run.font.color.rgb = RGBColor(0, 109, 119)
 
+    # Add a subtitle paragraph under the title.
     subtitle = doc.add_paragraph()
+    # Center the subtitle to match the title alignment.
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # Add the subtitle text and italicize it for visual separation.
     subtitle.add_run("RentOut Furniture Rental Operations").italic = True
 
-    # These header fields are intentionally machine-readable. app/scripts_api.py looks for `Key: Value` lines near the top of the document and turns them into retrieval metadata.
+    # These header fields are intentionally machine-readable.
+    # app/scripts_api.py looks for Key: Value lines near the top of the document and turns them into retrieval metadata.
+    # Store the title as a simple key-value line for easy parsing.
     doc.add_paragraph(f"Title: {spec['title']}")
+    # Store document type so retrieval can filter or cite policy/agreement/SOP documents.
     doc.add_paragraph(f"Document Type: {spec['document_type']}")
+    # Store owning department for metadata-aware retrieval and audit logs.
     doc.add_paragraph(f"Department: {spec['department']}")
+    # Store target audience so answers can distinguish customer-facing and internal docs.
     doc.add_paragraph(f"Audience: {spec['audience']}")
+    # Store version so citations can explain which policy version was used.
     doc.add_paragraph(f"Version: {spec['version']}")
+    # Store effective date so generated answers can cite current policy timing.
     doc.add_paragraph(f"Effective Date: {spec['effective_date']}")
 
+    # Add a short callout explaining why this generated document exists.
     add_callout(
+        # Pass the Word document object that should receive the callout.
         doc,
+        # Label shown before the callout body.
         "Document Use",
+        # Body text shown after the bold label.
         "This document is part of the RentOut RAG chatbot corpus. It contains detailed operational language, metadata, examples, and escalation rules so retrieval can use both semantic meaning and structured source attributes.",
     )
 
     # Body sections provide natural-language content for semantic retrieval.
+    # Walk through every named section and its paragraph list.
     for section, paragraphs in spec["sections"].items():
+        # Add the section name as a level-1 heading.
         doc.add_heading(section, level=1)
+        # Add each paragraph under that heading.
         for paragraph in paragraphs:
+            # Insert one policy paragraph into the Word document body.
             doc.add_paragraph(paragraph)
 
     # The metadata table is human-readable. The header lines above are what the ingestion code parses automatically.
     doc.add_heading("Metadata for Retrieval", level=1)
+    # Create a two-column table with one header row.
     table = doc.add_table(rows=1, cols=2)
+    # Use Word's built-in grid table style for visible borders.
     table.style = "Table Grid"
+    # Get the cells from the first row so we can label the columns.
     hdr = table.rows[0].cells
+    # Name the first column.
     hdr[0].text = "Field"
+    # Name the second column.
     hdr[1].text = "Value"
+    # Repeat the same metadata fields in a human-readable table.
     for field in ["title", "document_type", "department", "audience", "version", "effective_date"]:
+        # Add a new table row for this metadata field.
         row = table.add_row().cells
+        # Write the metadata field name into the first cell.
         row[0].text = field
+        # Write the metadata value into the second cell.
         row[1].text = str(spec[field])
 
+    # Add a final section that makes generated docs look like real policy files.
     doc.add_heading("Version History", level=1)
+    # Add a basic version-history entry using the same metadata fields.
     doc.add_paragraph(f"{spec['version']} - Initial RentOut RAG deployment corpus version, effective {spec['effective_date']}.")
 
+    # Save the finished Word file into app/data/source_docs.
     doc.save(OUT_DIR / spec["file"])
 
 
 def set_styles(doc: Document) -> None:
     """Apply simple corporate styling so the generated docs look realistic."""
+    # Get the first document section, which controls page margins.
     section = doc.sections[0]
+    # Set top margin to 0.8 inches.
     section.top_margin = Inches(0.8)
+    # Set bottom margin to 0.8 inches.
     section.bottom_margin = Inches(0.8)
+    # Set left margin to 0.85 inches.
     section.left_margin = Inches(0.85)
+    # Set right margin to 0.85 inches.
     section.right_margin = Inches(0.85)
 
+    # Access the document style registry.
     styles = doc.styles
+    # Use Arial for normal paragraph text.
     styles["Normal"].font.name = "Arial"
+    # Use a compact readable paragraph size.
     styles["Normal"].font.size = Pt(10.5)
+    # Use Arial for the title style.
     styles["Title"].font.name = "Arial"
+    # Make the title large enough to feel like a real document header.
     styles["Title"].font.size = Pt(22)
+    # Use Arial for section headings.
     styles["Heading 1"].font.name = "Arial"
+    # Make section headings larger than body text.
     styles["Heading 1"].font.size = Pt(15)
+    # Color section headings with the same RentOut teal accent.
     styles["Heading 1"].font.color.rgb = RGBColor(0, 109, 119)
 
 
 def add_callout(doc: Document, label: str, body: str) -> None:
     """Add a bold labeled paragraph used for document context notes."""
+    # Create a new paragraph for the callout.
     paragraph = doc.add_paragraph()
+    # Add the label first so it can be styled differently from the body.
     label_run = paragraph.add_run(f"{label}: ")
+    # Make the label bold for scanability.
     label_run.bold = True
+    # Color the label using the RentOut accent color.
     label_run.font.color.rgb = RGBColor(0, 109, 119)
+    # Add the explanatory body after the label.
     paragraph.add_run(body)
 
 
+# Run document generation only when this file is executed directly.
 if __name__ == "__main__":
+    # Start the script entrypoint.
     main()
 

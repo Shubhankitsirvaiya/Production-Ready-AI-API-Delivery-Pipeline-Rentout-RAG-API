@@ -1,15 +1,24 @@
-# Git and GitHub metadata are not needed inside Docker builds.
+# Exclude git internals from the Docker build context.
 .git
+
+# Exclude GitHub workflow files because the running container does not need them.
 .github
+
+# Exclude git ignore rules from the image.
 .gitignore
 
-# Local secrets and environment files must never be copied into the image.
+# Exclude local secrets from the image.
 .env
 .env.*
 
-# Local virtual environments and Python build/cache output.
+# Keep the safe sample env file in git, but not needed in Docker image.
+.env.example
+
+# Exclude local virtual environments.
 .venv
 venv
+
+# Exclude Python bytecode/cache folders.
 __pycache__/
 **/__pycache__/
 .pytest_cache/
@@ -17,20 +26,24 @@ __pycache__/
 *.pyo
 *.pyd
 *.egg-info/
+
+# Exclude build outputs.
 build/
 dist/
 
-# Test, coverage, and local evaluation artifacts are not runtime dependencies.
+# Exclude tests from runtime image.
 tests/
+
+# Exclude local reports/evaluation outputs.
 htmlcov/
 .coverage
 .deepeval/
 
-# Presentation/demo assets are not required by the API container.
+# Exclude classroom/demo presentation assets from runtime image.
 slides/
 icons/
 README.md
 
-# Runtime/generated application data should be mounted or regenerated, not baked into the image.
+# Exclude generated runtime logs and vector data; mount/regenerate these instead.
 app/data/audit_logs/*.jsonl
 app/data/vector_store/*.json

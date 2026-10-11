@@ -1,9 +1,26 @@
+# Web framework used to expose the API.
 fastapi
+
+# ASGI server used to run FastAPI.
 uvicorn[standard]
+
+# Loads `.env` values during local development.
 python-dotenv
+
+# Typed settings model backed by environment variables.
 pydantic-settings
+
+# OpenAI SDK for async chat and embedding calls.
 openai
+
+# Reads and writes Word documents used as the demo corpus.
 python-docx
+
+# Test runner used by local tests and GitHub Actions.
 pytest
+
+# Adds async test support for pytest.
 pytest-asyncio
+
+# Async HTTP client used by the smoke test.
 httpx

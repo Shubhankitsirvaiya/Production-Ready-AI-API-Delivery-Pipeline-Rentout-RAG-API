@@ -1,28 +1,37 @@
+# Local virtual environments.
 .venv/
 venv/
+
+# Python bytecode and cache directories.
 __pycache__/
 **/__pycache__/
 .pytest_cache/
-*.egg-info/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
 
-# Local secrets
+# Local secrets should never be committed.
 .env
 .env.*
+
+# Keep the safe example env file committed.
 !.env.example
 
-# Generated/runtime artifacts
+# Local/generated artifacts.
 artifacts/
 qa/
 htmlcov/
 .coverage
 .deepeval/
+
+# Local vector database experiments.
 chroma/
 chroma_db/
 .chroma/
 *.sqlite3
 *.db
+
+# Runtime audit logs and generated vector stores.
 app/data/audit_logs/*.jsonl
 app/data/vector_store/*.json

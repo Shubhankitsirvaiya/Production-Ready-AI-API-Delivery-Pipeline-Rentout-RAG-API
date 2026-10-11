@@ -1,30 +1,46 @@
+# Workflow name shown in the GitHub Actions UI.
 name: CI
 
+# Define when this workflow should run.
 on:
+  # Run tests whenever code is pushed to main.
   push:
     branches: ["main"]
+  # Run tests for pull requests targeting main.
   pull_request:
     branches: ["main"]
 
+# Jobs are the independent units of work in a workflow.
 jobs:
+  # This job validates the Python application with pytest.
   test:
+    # Use GitHub's latest Ubuntu runner image.
     runs-on: ubuntu-latest
+    # Steps run in order inside the job.
     steps:
+      # Download repository code into the runner.
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Install the Python version used by the project.
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
+          # Match the Dockerfile Python version.
           python-version: "3.13"
 
+      # Install application and test dependencies.
       - name: Install dependencies
         run: |
+          # Upgrade pip first so package installation is modern/reliable.
           python -m pip install --upgrade pip
+          # Install dependencies listed in requirements.txt.
           python -m pip install -r requirements.txt
 
+      # Run the automated test suite.
       - name: Run tests
         env:
-          PYTHONPATH: .:src
+          # Make repository packages importable during tests.
+          PYTHONPATH: .
+        # -q keeps CI output compact.
         run: pytest -q
-
