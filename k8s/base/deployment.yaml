@@ -49,9 +49,11 @@ spec:
             - /bin/sh
             - -c
             # Build vectors only when persistent storage does not contain them.
+            # Module execution keeps /app on Python's import path so the script
+            # can import the top-level app package.
             - >-
               if [ ! -s /runtime/vector_store/rentout_vectors.json ]; then
-                python scripts/ingest_docs.py;
+                python -m scripts.ingest_docs;
               else
                 echo 'Existing vector store found; ingestion skipped.';
               fi
