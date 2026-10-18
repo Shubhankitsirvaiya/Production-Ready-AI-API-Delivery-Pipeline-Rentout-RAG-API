@@ -17,6 +17,9 @@ __pycache__/
 
 # Keep the safe example env file committed.
 !.env.example
+!.env.dev.example
+!.env.test.example
+!.env.prod.example
 
 # Local/generated artifacts.
 artifacts/

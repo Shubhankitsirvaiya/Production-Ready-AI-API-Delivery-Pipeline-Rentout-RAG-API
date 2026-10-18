@@ -4,8 +4,8 @@ Creates the complete local Project 12 platform on Minikube.
 
 .DESCRIPTION
 The script starts Minikube with Docker Desktop, enables Metrics Server, installs
-Headlamp and Argo CD, creates runtime Secrets from the local .env file, and then
-registers all three GitOps applications with Argo CD.
+Headlamp and Argo CD, creates runtime Secrets from separate environment files,
+and then registers all three GitOps applications with Argo CD.
 
 Real credentials never get written to a tracked YAML file.
 #>
@@ -76,28 +76,45 @@ function Read-DotEnv {
     return $values
 }
 
-# The local secret source remains the ignored repository .env file.
-$envPath = Join-Path $repoRoot ".env"
-if (-not (Test-Path $envPath)) {
-    throw "Missing $envPath. Create it from .env.example before bootstrapping Kubernetes."
-}
+# .env is a backward-compatible shared fallback for local development.
+$sharedEnvPath = Join-Path $repoRoot ".env"
 
-# Parse secrets once and retain them only in this PowerShell process.
-$secretValues = Read-DotEnv -Path $envPath
-
-# OpenAI is mandatory because the init container must generate embeddings.
-if (-not $secretValues["OPENAI_API_KEY"] -or $secretValues["OPENAI_API_KEY"] -like "your_*" ) {
-    throw "OPENAI_API_KEY is missing or still contains the example value in .env."
-}
-
-# LangSmith is optional at runtime, but warn clearly when tracing cannot be sent.
-if (-not $secretValues["LANGSMITH_API_KEY"]) {
-    Write-Warning "LANGSMITH_API_KEY is not set. Kubernetes will run, but LangSmith traces will not be available."
-}
+# Every environment can override credentials independently. The real files are
+# ignored by Git; only their documented *.example templates are committed.
+$environmentDefinitions = @(
+    @{ Name = "dev"; Namespace = "rentout-dev"; EnvPath = (Join-Path $repoRoot ".env.dev") },
+    @{ Name = "test"; Namespace = "rentout-test"; EnvPath = (Join-Path $repoRoot ".env.test") },
+    @{ Name = "prod"; Namespace = "rentout-prod"; EnvPath = (Join-Path $repoRoot ".env.prod") }
+)
 
 # Create all environment namespaces before creating Secrets inside them.
-$environmentNamespaces = @("rentout-dev", "rentout-test", "rentout-prod")
-foreach ($namespace in $environmentNamespaces) {
+foreach ($environment in $environmentDefinitions) {
+    # Prefer the environment-specific file, then fall back to the shared .env.
+    $selectedEnvPath = $environment.EnvPath
+    if (-not (Test-Path $selectedEnvPath)) {
+        if (-not (Test-Path $sharedEnvPath)) {
+            throw "Missing $selectedEnvPath and fallback $sharedEnvPath. Create the environment file from its example."
+        }
+        Write-Warning "$selectedEnvPath is missing; using shared .env for $($environment.Name)."
+        $selectedEnvPath = $sharedEnvPath
+    }
+
+    # Parse this environment's secrets without printing their values.
+    $secretValues = Read-DotEnv -Path $selectedEnvPath
+
+    # OpenAI is mandatory because the init container generates embeddings.
+    if (-not $secretValues["OPENAI_API_KEY"] -or $secretValues["OPENAI_API_KEY"] -like "your_*" ) {
+        throw "OPENAI_API_KEY is missing or contains an example value in $selectedEnvPath."
+    }
+
+    # LangSmith is optional and remains disabled by default in the ConfigMap.
+    if (-not $secretValues["LANGSMITH_API_KEY"]) {
+        Write-Warning "LANGSMITH_API_KEY is not set for $($environment.Name); trace export is unavailable."
+    }
+
+    # Use the namespace associated with the current environment definition.
+    $namespace = $environment.Namespace
+
     # --dry-run emits YAML and kubectl apply makes the command idempotent.
     kubectl create namespace $namespace --dry-run=client -o yaml | kubectl apply -f -
 
