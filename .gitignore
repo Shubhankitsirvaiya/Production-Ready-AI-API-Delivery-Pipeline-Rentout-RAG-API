@@ -39,6 +39,13 @@ chroma_db/
 app/data/audit_logs/*.jsonl
 app/data/vector_store/*.json
 
+# Presentation sources and their slide-only image assets stay local.
+slides/
+icons/
+
+# Microsoft Word creates temporary lock files beside open documents.
+~$*.docx
+
 # Real Kubernetes and Argo CD Secret manifests must remain local.
 k8s/**/secrets.yaml
 k8s/**/registry-secret.yaml

@@ -39,7 +39,7 @@ data:
   # Characters repeated between chunks to preserve boundary context.
   CHUNK_OVERLAP: "150"
   # Trace export is opt-in because traces may contain user questions and retrieved policy text.
-  LANGSMITH_TRACING: "false"
+  LANGSMITH_TRACING: "true"
   # Overlays replace this with a separate LangSmith project per environment.
   LANGSMITH_PROJECT: "rentout-project-12"
   # Default US LangSmith endpoint; change this for another data region.
