@@ -1,0 +1,159 @@
+# Deployment uses the stable apps API.
+apiVersion: apps/v1
+# A Deployment manages ReplicaSets, Pods, rolling updates, and rollback history.
+kind: Deployment
+metadata:
+  name: rentout-api
+  labels:
+    app.kubernetes.io/name: rentout-api
+    app.kubernetes.io/component: api
+spec:
+  # Base replica count; each environment overlay can replace it.
+  replicas: 1
+  # Keep ten historical ReplicaSets so rollout history and rollback remain available.
+  revisionHistoryLimit: 10
+  # Mark a rollout failed if it cannot become ready within five minutes.
+  progressDeadlineSeconds: 300
+  strategy:
+    # RollingUpdate replaces Pods gradually instead of stopping the whole service.
+    type: RollingUpdate
+    rollingUpdate:
+      # Never voluntarily remove the currently available Pod during rollout.
+      maxUnavailable: 0
+      # Create at most one extra Pod while a new version starts.
+      maxSurge: 1
+  selector:
+    matchLabels:
+      # This selector must match the labels in template.metadata.labels.
+      app.kubernetes.io/name: rentout-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rentout-api
+        app.kubernetes.io/component: api
+    spec:
+      # Run the Pod using the restricted application ServiceAccount.
+      serviceAccountName: rentout-api
+      # Give in-flight requests time to finish after termination begins.
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        # Volumes mounted by the Pod receive this group ownership.
+        fsGroup: 10001
+      initContainers:
+        - name: initialize-vector-store
+          # CI replaces the tag through environment overlays during promotion.
+          image: ghcr.io/shubhankitsirvaiya/rentout-rag-chatbot:latest
+          # Always check the registry when a mutable tag such as latest is used.
+          imagePullPolicy: Always
+          command:
+            - /bin/sh
+            - -c
+            # Build vectors only when persistent storage does not contain them.
+            - >-
+              if [ ! -s /runtime/vector_store/rentout_vectors.json ]; then
+                python scripts/ingest_docs.py;
+              else
+                echo 'Existing vector store found; ingestion skipped.';
+              fi
+          envFrom:
+            - configMapRef:
+                # Non-secret ingestion settings.
+                name: rentout-api-config
+            - secretRef:
+                # OpenAI credentials used to create embeddings.
+                name: rentout-api-secrets
+          volumeMounts:
+            - name: runtime-data
+              mountPath: /runtime
+          securityContext:
+            runAsUser: 10001
+            runAsGroup: 10001
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: rentout-api
+          # Existing GHCR image produced by GitHub Actions.
+          image: ghcr.io/shubhankitsirvaiya/rentout-rag-chatbot:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              # Uvicorn listens on port 8000 inside the container.
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rentout-api-config
+            - secretRef:
+                name: rentout-api-secrets
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  # Downward API exposes the current Pod name.
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  # Downward API exposes the environment namespace.
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  # Downward API exposes the hosting node.
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              # Scheduler reserves these resources for every Pod.
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              # Limits protect the local cluster from one runaway Pod.
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            # Five-second checks with 24 failures allow two minutes to start.
+            periodSeconds: 5
+            failureThreshold: 24
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              # Ready only after the vector store is available.
+              path: /ready
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              # Restart the Pod only when the web process stops responding.
+              path: /health
+              port: http
+            periodSeconds: 20
+            failureThreshold: 3
+            timeoutSeconds: 3
+          lifecycle:
+            preStop:
+              exec:
+                # Let Service routing drain before process termination.
+                command: ["/bin/sh", "-c", "sleep 5"]
+          volumeMounts:
+            - name: runtime-data
+              # Persist vector data and audit logs across Pod replacement.
+              mountPath: /runtime
+          securityContext:
+            runAsUser: 10001
+            runAsGroup: 10001
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: runtime-data
+          persistentVolumeClaim:
+            claimName: rentout-runtime
+

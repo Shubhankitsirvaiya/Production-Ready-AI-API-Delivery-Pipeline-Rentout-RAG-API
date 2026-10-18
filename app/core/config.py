@@ -45,6 +45,29 @@ class Settings(BaseSettings):
     # Embedding model used for both document chunks and user questions.
     openai_embedding_model: str = "text-embedding-3-small"
 
+    # LangSmith remains opt-in because traces can contain application content.
+    langsmith_tracing: bool = False
+
+    # Optional LangSmith credential; it is never returned by an API endpoint.
+    langsmith_api_key: str | None = None
+
+    # Logical trace collection name used only when tracing is enabled.
+    langsmith_project: str = "rentout-local-development"
+
+    # LangSmith endpoint can be changed for regional accounts.
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
+
+    # Environment label used to distinguish local, dev, test, and prod.
+    deployment_environment: str = "local"
+
+    # Kubernetes Downward API replaces these defaults inside a Pod.
+    pod_name: str = "local-process"
+    pod_namespace: str = "local"
+    node_name: str = "local-machine"
+
+    # Minimum severity used by application logging.
+    log_level: str = "INFO"
+
     # Root folder for all local demo data.
     data_dir: Path = Path("app/data")
 

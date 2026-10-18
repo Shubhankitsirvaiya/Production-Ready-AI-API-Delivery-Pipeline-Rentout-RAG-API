@@ -1,0 +1,76 @@
+# Deploy one lightweight Headlamp web UI instance for the local cluster.
+replicaCount: 1
+
+# Use a predictable resource name so port-forward and token commands stay simple.
+fullnameOverride: headlamp
+
+config:
+  # Headlamp runs inside the cluster and uses the mounted Kubernetes API connection.
+  inCluster: true
+  # Display this friendly context name in the Headlamp UI.
+  inClusterContextName: "rentout-local"
+  # Keep normal token-based login enabled.
+  # Setting this to true would give every visitor the ServiceAccount permissions.
+  unsafeUseServiceAccountToken: false
+  # Do not expose Helm install/upgrade operations through this monitoring UI.
+  enableHelm: false
+  staticPlugins:
+    # Disable the bundled Prometheus button because this project uses Metrics Server.
+    enabled: false
+
+# Mount the ServiceAccount token so authenticated Headlamp sessions can query Kubernetes.
+automountServiceAccountToken: true
+
+serviceAccount:
+  # Let the Helm chart create the Headlamp ServiceAccount.
+  create: true
+  # Use a stable name for `kubectl create token headlamp`.
+  name: headlamp
+
+clusterRoleBinding:
+  # Create a binding so Headlamp can display cluster-wide resources.
+  create: true
+  # cluster-admin is acceptable only for this local classroom/demo cluster.
+  # A shared or production cluster should replace this with a read-only custom role.
+  clusterRoleName: cluster-admin
+
+service:
+  # Keep Headlamp private inside the cluster.
+  type: ClusterIP
+  # scripts/k8s/open-dashboards.ps1 forwards localhost:4466 to this port.
+  port: 80
+
+ingress:
+  # Port-forwarding is more reliable than Minikube Ingress on Windows Docker driver.
+  enabled: false
+
+resources:
+  requests:
+    # Reserve a small amount of CPU for responsive navigation.
+    cpu: 100m
+    # Reserve 128 MiB for the Headlamp server.
+    memory: 128Mi
+  limits:
+    # Prevent the dashboard from competing heavily with AI workloads.
+    cpu: 300m
+    memory: 256Mi
+
+securityContext:
+  # Headlamp does not need root privileges.
+  runAsNonRoot: true
+  runAsUser: 100
+  runAsGroup: 101
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    # Drop every Linux capability because this is a web dashboard only.
+    drop: ["ALL"]
+
+persistentVolumeClaim:
+  # Headlamp is stateless for this project, so no disk claim is necessary.
+  enabled: false
+
+podDisruptionBudget:
+  # One local replica does not benefit from a separate disruption budget.
+  enabled: false

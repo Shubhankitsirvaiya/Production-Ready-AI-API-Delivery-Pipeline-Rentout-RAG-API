@@ -1,0 +1,18 @@
+# PersistentVolumeClaim uses the stable core API.
+apiVersion: v1
+# A PVC requests persistent storage from the cluster's default StorageClass.
+kind: PersistentVolumeClaim
+metadata:
+  # The Pod mounts this claim at /runtime.
+  name: rentout-runtime
+  labels:
+    app.kubernetes.io/name: rentout-api
+spec:
+  # ReadWriteOnce supports read/write mounting on the single Minikube node.
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # One GiB is sufficient for vectors and JSONL audit logs in this project.
+      storage: 1Gi
+

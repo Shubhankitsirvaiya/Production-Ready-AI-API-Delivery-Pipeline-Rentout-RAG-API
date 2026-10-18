@@ -1,0 +1,11 @@
+# Namespace is part of the stable Kubernetes core API.
+apiVersion: v1
+# Dev receives its own namespace so resources and secrets cannot collide with test/prod.
+kind: Namespace
+metadata:
+  name: rentout-dev
+  labels:
+    app.kubernetes.io/part-of: rentout-platform
+    # The environment label appears in Headlamp and kubectl selectors.
+    environment: dev
+

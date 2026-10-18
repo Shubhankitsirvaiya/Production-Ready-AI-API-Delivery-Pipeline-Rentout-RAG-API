@@ -1,0 +1,14 @@
+# Kustomize files use this API and kind.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Shared resources are listed once and reused by all environment overlays.
+resources:
+  - serviceaccount.yaml
+  - configmap.yaml
+  - persistent-volume-claim.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - horizontal-pod-autoscaler.yaml
+  - pod-disruption-budget.yaml
+# secrets.example.yaml is excluded so placeholder values are never deployed.

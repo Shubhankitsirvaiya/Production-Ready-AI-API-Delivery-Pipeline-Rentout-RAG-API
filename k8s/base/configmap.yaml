@@ -1,0 +1,41 @@
+# ConfigMap is part of the Kubernetes core API.
+apiVersion: v1
+# A ConfigMap stores non-secret runtime configuration.
+kind: ConfigMap
+metadata:
+  # The Deployment imports every key below as an environment variable.
+  name: rentout-api-config
+  labels:
+    app.kubernetes.io/name: rentout-api
+data:
+  # Human-readable name returned by GET /version.
+  APP_NAME: "RentOut RAG Chatbot"
+  # Overlays replace this value with dev, test, or prod.
+  DEPLOYMENT_ENVIRONMENT: "base"
+  # Model used for grounded answer generation.
+  OPENAI_CHAT_MODEL: "gpt-5"
+  # Model used consistently for document and query embeddings.
+  OPENAI_EMBEDDING_MODEL: "text-embedding-3-small"
+  # Source documents and prompt templates are packaged under this directory.
+  DATA_DIR: "/app/app/data"
+  # Prompt files stay read-only inside the image.
+  PROMPT_DIR: "/app/app/data/prompts"
+  # Audit records are written to persistent storage.
+  AUDIT_LOG_DIR: "/runtime/audit_logs"
+  # The generated JSON vector store is written to persistent storage.
+  VECTOR_STORE_PATH: "/runtime/vector_store/rentout_vectors.json"
+  # Default number of chunks retrieved per question.
+  TOP_K: "5"
+  # Approximate character target for each semantic chunk.
+  CHUNK_SIZE: "900"
+  # Characters repeated between chunks to preserve boundary context.
+  CHUNK_OVERLAP: "150"
+  # Trace export is opt-in because traces may contain user questions and retrieved policy text.
+  LANGSMITH_TRACING: "false"
+  # Overlays replace this with a separate LangSmith project per environment.
+  LANGSMITH_PROJECT: "rentout-project-12"
+  # Default US LangSmith endpoint; change this for another data region.
+  LANGSMITH_ENDPOINT: "https://api.smith.langchain.com"
+  # Minimum severity written by application and Uvicorn logs.
+  LOG_LEVEL: "INFO"
+

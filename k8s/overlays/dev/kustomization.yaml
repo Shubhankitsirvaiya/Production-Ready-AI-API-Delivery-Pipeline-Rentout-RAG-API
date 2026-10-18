@@ -1,0 +1,75 @@
+# This overlay composes the shared base into the development environment.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Apply namespaced base resources to rentout-dev.
+namespace: rentout-dev
+resources:
+  # Reuse all shared workload definitions.
+  - ../../base
+  # Create the namespace before namespaced resources are applied.
+  - namespace.yaml
+labels:
+  - pairs:
+      # Label every generated resource for environment filtering.
+      environment: dev
+    # Add the label to Pod selectors as well as metadata.
+    includeSelectors: true
+images:
+  - name: ghcr.io/shubhankitsirvaiya/rentout-rag-chatbot
+    # GitHub Actions replaces this tag after every successful main build.
+    newTag: 7ea6c2e23f13
+patches:
+  - target:
+      kind: ConfigMap
+      name: rentout-api-config
+    patch: |-
+      # Identify logs and status as development traffic.
+      - op: replace
+        path: /data/DEPLOYMENT_ENVIRONMENT
+        value: dev
+      # Keep dev traces separate in the LangSmith UI.
+      - op: replace
+        path: /data/LANGSMITH_PROJECT
+        value: rentout-project-12-dev
+      # Dev logs are more verbose for troubleshooting.
+      - op: replace
+        path: /data/LOG_LEVEL
+        value: DEBUG
+  - target:
+      kind: Deployment
+      name: rentout-api
+    patch: |-
+      # One replica keeps local development resource use small.
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      # Dev reserves fewer resources than test and production.
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 768Mi
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: rentout-api
+    patch: |-
+      # Dev can scale from one to two Pods during load-test demonstrations.
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+  - target:
+      kind: Ingress
+      name: rentout-api
+    patch: |-
+      # Development uses a distinct local hostname.
+      - op: replace
+        path: /spec/rules/0/host
+        value: dev.rentout.local
+

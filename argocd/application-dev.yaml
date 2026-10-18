@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+# Application connects one Git path to one Kubernetes destination.
+kind: Application
+metadata:
+  name: rentout-dev
+  namespace: argocd
+  labels:
+    environment: dev
+  finalizers:
+    # Deleting the Application also removes resources that it owns.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # AppProject supplies repository and destination guardrails.
+  project: rentout-platform
+  source:
+    repoURL: https://github.com/Shubhankitsirvaiya/Production-Ready-AI-API-Delivery-Pipeline-Rentout-RAG-API.git
+    # Track the main branch; CI writes new dev image tags there.
+    targetRevision: main
+    # Argo CD runs Kustomize against this environment overlay.
+    path: k8s/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rentout-dev
+  syncPolicy:
+    automated:
+      # Remove resources deleted from Git.
+      prune: true
+      # Revert manual live-cluster drift back to the Git definition.
+      selfHeal: true
+      # Keep protection against accidentally empty applications.
+      allowEmpty: false
+    syncOptions:
+      # Create the destination namespace if it does not exist yet.
+      - CreateNamespace=true
+      # Apply only objects whose desired and live states differ.
+      - ApplyOutOfSyncOnly=true
+      # Delete obsolete objects after healthy replacements have applied.
+      - PruneLast=true
+  revisionHistoryLimit: 10
+

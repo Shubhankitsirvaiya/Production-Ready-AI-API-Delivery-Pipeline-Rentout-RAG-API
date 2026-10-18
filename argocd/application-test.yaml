@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rentout-test
+  namespace: argocd
+  labels:
+    environment: test
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: rentout-platform
+  source:
+    repoURL: https://github.com/Shubhankitsirvaiya/Production-Ready-AI-API-Delivery-Pipeline-Rentout-RAG-API.git
+    targetRevision: main
+    path: k8s/overlays/test
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rentout-test
+  syncPolicy:
+    automated:
+      # Test syncs automatically only after its pinned image tag is promoted in Git.
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true
+  revisionHistoryLimit: 10
+

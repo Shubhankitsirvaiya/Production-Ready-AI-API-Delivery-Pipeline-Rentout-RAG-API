@@ -1,0 +1,48 @@
+# autoscaling/v2 supports multiple metrics and detailed scaling behavior.
+apiVersion: autoscaling/v2
+# HPA changes Deployment replicas from observed resource usage.
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rentout-api
+  labels:
+    app.kubernetes.io/name: rentout-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rentout-api
+  # Overlays tune these limits per environment.
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # Add Pods above 70 percent of requested CPU.
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          # Add Pods above 80 percent of requested memory.
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          # Add no more than two Pods per minute.
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      # Wait five minutes before removing capacity to avoid flapping.
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          # Remove no more than one Pod per minute.
+          value: 1
+          periodSeconds: 60
+

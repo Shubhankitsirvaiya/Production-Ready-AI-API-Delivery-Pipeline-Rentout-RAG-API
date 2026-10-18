@@ -35,3 +35,8 @@ chroma_db/
 # Runtime audit logs and generated vector stores.
 app/data/audit_logs/*.jsonl
 app/data/vector_store/*.json
+
+# Real Kubernetes and Argo CD Secret manifests must remain local.
+k8s/**/secrets.yaml
+k8s/**/registry-secret.yaml
+argocd/repository-secret.yaml

@@ -1,0 +1,9 @@
+apiVersion: v1
+# Production has its own namespace and independently managed Secret/PVC.
+kind: Namespace
+metadata:
+  name: rentout-prod
+  labels:
+    app.kubernetes.io/part-of: rentout-platform
+    environment: prod
+

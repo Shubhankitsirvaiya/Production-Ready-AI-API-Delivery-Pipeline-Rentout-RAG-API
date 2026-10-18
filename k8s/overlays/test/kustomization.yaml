@@ -1,0 +1,66 @@
+# Test receives promoted, pinned images rather than every development build.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: rentout-test
+resources:
+  - ../../base
+  - namespace.yaml
+labels:
+  - pairs:
+      environment: test
+    includeSelectors: true
+images:
+  - name: ghcr.io/shubhankitsirvaiya/rentout-rag-chatbot
+    # Change this immutable SHA only after dev verification succeeds.
+    newTag: 7ea6c2e23f13
+patches:
+  - target:
+      kind: ConfigMap
+      name: rentout-api-config
+    patch: |-
+      - op: replace
+        path: /data/DEPLOYMENT_ENVIRONMENT
+        value: test
+      - op: replace
+        path: /data/LANGSMITH_PROJECT
+        value: rentout-project-12-test
+      # INFO keeps test logs useful without development-level verbosity.
+      - op: replace
+        path: /data/LOG_LEVEL
+        value: INFO
+  - target:
+      kind: Deployment
+      name: rentout-api
+    patch: |-
+      # Test starts with one Pod and lets HPA demonstrate scaling.
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 200m
+            memory: 384Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: rentout-api
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      # Test may scale to three Pods during reliability checks.
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+  - target:
+      kind: Ingress
+      name: rentout-api
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: test.rentout.local
+

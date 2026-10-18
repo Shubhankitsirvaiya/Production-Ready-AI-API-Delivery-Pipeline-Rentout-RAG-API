@@ -1,0 +1,15 @@
+# policy/v1 is the stable API for PodDisruptionBudget.
+apiVersion: policy/v1
+# A PDB limits voluntary disruptions such as node maintenance.
+kind: PodDisruptionBudget
+metadata:
+  name: rentout-api
+  labels:
+    app.kubernetes.io/name: rentout-api
+spec:
+  # Keep at least one API Pod available during voluntary disruption.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rentout-api
+

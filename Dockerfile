@@ -16,6 +16,10 @@ ENV PYTHONUNBUFFERED=1
 # Use /app as the working directory inside the image.
 WORKDIR /app
 
+# Create the fixed non-root account referenced by Kubernetes securityContext.
+RUN groupadd --gid 10001 rentout && \
+    useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin rentout
+
 # Copy dependency list first so Docker can cache pip install when app code changes.
 COPY requirements.txt .
 
@@ -23,10 +27,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the FastAPI application package into the image.
-COPY app ./app
+COPY --chown=10001:10001 app ./app
 
 # Copy operational scripts into the image for optional container-side use.
-COPY scripts ./scripts
+COPY --chown=10001:10001 scripts ./scripts
+
+# Run the web process as the restricted account rather than Linux root.
+USER 10001:10001
 
 # Document that the API listens on port 8000.
 EXPOSE 8000

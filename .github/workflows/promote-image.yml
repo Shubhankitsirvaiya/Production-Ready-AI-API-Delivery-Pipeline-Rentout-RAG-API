@@ -1,0 +1,72 @@
+# This workflow promotes an existing immutable image without rebuilding it.
+name: Promote Kubernetes Image
+
+# workflow_dispatch creates a form in the GitHub Actions UI.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        # Choose the environment whose desired image tag should change.
+        description: Environment to promote
+        required: true
+        type: choice
+        options:
+          - test
+          - prod
+      image_tag:
+        # Use the twelve-character SHA tag produced by Docker Image workflow.
+        description: Existing GHCR image tag
+        required: true
+        type: string
+
+permissions:
+  # Required to commit the changed Kustomize overlay back to main.
+  contents: write
+  # Required to authenticate and verify the image in GHCR.
+  packages: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate image tag format
+        shell: bash
+        run: |
+          # Reject mutable tags and malformed values before changing Git.
+          if [[ ! "${{ inputs.image_tag }}" =~ ^[0-9a-f]{12}$ ]]; then
+            echo "image_tag must be a twelve-character lowercase commit SHA"
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify image exists
+        run: |
+          # Fail before updating desired state if the requested registry tag is absent.
+          docker manifest inspect "ghcr.io/shubhankitsirvaiya/rentout-rag-chatbot:${{ inputs.image_tag }}" > /dev/null
+
+      - name: Update environment manifest
+        shell: bash
+        run: |
+          # Select test or prod from the validated choice input.
+          FILE="k8s/overlays/${{ inputs.environment }}/kustomization.yaml"
+          # Replace the single immutable image tag in that overlay.
+          sed -i -E "s/^([[:space:]]*newTag:[[:space:]]*)[0-9a-f]{12}$/\1${{ inputs.image_tag }}/" "$FILE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$FILE"
+          if git diff --cached --quiet; then
+            echo "${{ inputs.environment }} already uses ${{ inputs.image_tag }}"
+            exit 0
+          fi
+          # For prod, Argo CD shows OutOfSync and waits for a UI Sync action.
+          git commit -m "deploy(${{ inputs.environment }}): promote ${{ inputs.image_tag }} [skip ci]"
+          git push origin HEAD:main

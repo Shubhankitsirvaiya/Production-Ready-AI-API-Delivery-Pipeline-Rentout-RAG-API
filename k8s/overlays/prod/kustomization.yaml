@@ -1,0 +1,73 @@
+# Production uses stronger availability and resource settings.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: rentout-prod
+resources:
+  - ../../base
+  - namespace.yaml
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: true
+images:
+  - name: ghcr.io/shubhankitsirvaiya/rentout-rag-chatbot
+    # Production remains on an immutable SHA until an explicit promotion.
+    newTag: 7ea6c2e23f13
+patches:
+  - target:
+      kind: ConfigMap
+      name: rentout-api-config
+    patch: |-
+      - op: replace
+        path: /data/DEPLOYMENT_ENVIRONMENT
+        value: prod
+      - op: replace
+        path: /data/LANGSMITH_PROJECT
+        value: rentout-project-12-prod
+      - op: replace
+        path: /data/LOG_LEVEL
+        value: INFO
+  - target:
+      kind: Deployment
+      name: rentout-api
+    patch: |-
+      # Two baseline Pods allow a rolling update without service interruption.
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: rentout-api
+    patch: |-
+      # Never scale production below two replicas.
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      # Six is a demonstration ceiling; tune it from measured capacity later.
+      - op: replace
+        path: /spec/maxReplicas
+        value: 6
+  - target:
+      kind: PersistentVolumeClaim
+      name: rentout-runtime
+    patch: |-
+      # Production receives more room for vector and audit data.
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 5Gi
+  - target:
+      kind: Ingress
+      name: rentout-api
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: rentout.local

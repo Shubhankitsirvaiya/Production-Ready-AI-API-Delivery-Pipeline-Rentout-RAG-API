@@ -1,0 +1,29 @@
+# Ingress uses the stable Kubernetes networking API.
+apiVersion: networking.k8s.io/v1
+# Ingress defines host/path routing to the internal Service.
+kind: Ingress
+metadata:
+  name: rentout-api
+  labels:
+    app.kubernetes.io/name: rentout-api
+  annotations:
+    # Bound request bodies while allowing normal chat requests.
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    # LLM requests may need more time than ordinary HTTP requests.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+spec:
+  # The route expects an optional NGINX Ingress controller.
+  ingressClassName: nginx
+  rules:
+    - host: rentout.local
+      http:
+        paths:
+          - path: /
+            # Route /chat, /health, /docs, and all other API paths.
+            pathType: Prefix
+            backend:
+              service:
+                name: rentout-api
+                port:
+                  name: http
+

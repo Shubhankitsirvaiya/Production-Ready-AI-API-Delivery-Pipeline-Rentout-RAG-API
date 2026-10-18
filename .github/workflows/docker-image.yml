@@ -9,17 +9,38 @@ on:
     # Also support release tags such as v1.0.0.
     tags: ["v*.*.*"]
 
-# Grant the workflow enough permission to read code and write GHCR packages.
+# Grant the workflow permission to publish images and write the dev GitOps tag.
 permissions:
-  # Needed by checkout.
-  contents: read
+  # Write is required for the final manifest-only deployment commit.
+  contents: write
   # Needed to push images to GitHub Container Registry.
   packages: write
 
 # Jobs are independent units of workflow work.
 jobs:
+  # Gate image publication on the same automated tests used by CI.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Run tests
+        env:
+          PYTHONPATH: .
+        run: pytest -q
+
   # Build and push the Docker image.
   build:
+    # Do not publish an image when tests fail.
+    needs: test
     # Use GitHub's latest Ubuntu runner image.
     runs-on: ubuntu-latest
     # Steps run sequentially.
@@ -89,3 +110,25 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             docker push "${{ steps.meta.outputs.image }}:${GITHUB_REF_NAME}"
           fi
+
+      # Update only dev after a normal main-branch image build.
+      # Test and prod advance through the separate manual promotion workflow.
+      - name: Update development image tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Replace the immutable tag in the dev Kustomize overlay.
+          sed -i -E "s/^([[:space:]]*newTag:[[:space:]]*)[0-9a-f]{12}$/\1${{ steps.meta.outputs.sha_tag }}/" k8s/overlays/dev/kustomization.yaml
+          # Identify the automation account in Git history.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Stage only the desired-state file changed by this step.
+          git add k8s/overlays/dev/kustomization.yaml
+          # Avoid an empty commit when the overlay already contains this tag.
+          if git diff --cached --quiet; then
+            echo "Development already references ${{ steps.meta.outputs.sha_tag }}"
+            exit 0
+          fi
+          # [skip ci] prevents a deployment-only commit from rebuilding the same image.
+          git commit -m "deploy(dev): ${{ steps.meta.outputs.sha_tag }} [skip ci]"
+          # Argo CD observes this Git change and automatically syncs rentout-dev.
+          git push origin HEAD:main

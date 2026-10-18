@@ -1,0 +1,21 @@
+# Service uses the stable Kubernetes core API.
+apiVersion: v1
+# A Service gives replaceable Pods one stable network endpoint.
+kind: Service
+metadata:
+  name: rentout-api
+  labels:
+    app.kubernetes.io/name: rentout-api
+spec:
+  # ClusterIP is internal; local users reach it through port-forwarding or Ingress.
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: rentout-api
+  ports:
+    - name: http
+      # Clients use Service port 80.
+      port: 80
+      # Kubernetes forwards to the container's named port 8000.
+      targetPort: http
+      protocol: TCP
+

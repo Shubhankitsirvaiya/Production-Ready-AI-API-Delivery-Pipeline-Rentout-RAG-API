@@ -1,0 +1,10 @@
+# This file lets all Argo CD application definitions be applied together.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Project must exist before Applications are admitted into it.
+  - project.yaml
+  - application-dev.yaml
+  - application-test.yaml
+  - application-prod.yaml
+# repository-secret.example.yaml is intentionally excluded.

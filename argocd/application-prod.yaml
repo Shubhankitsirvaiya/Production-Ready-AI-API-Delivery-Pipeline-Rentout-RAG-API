@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rentout-prod
+  namespace: argocd
+  labels:
+    environment: prod
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: rentout-platform
+  source:
+    repoURL: https://github.com/Shubhankitsirvaiya/Production-Ready-AI-API-Delivery-Pipeline-Rentout-RAG-API.git
+    targetRevision: main
+    path: k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rentout-prod
+  syncPolicy:
+    # Production intentionally omits automated sync.
+    # Argo CD will show OutOfSync after promotion and an operator clicks Sync in the UI.
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true
+  revisionHistoryLimit: 10
+

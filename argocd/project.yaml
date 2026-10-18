@@ -1,0 +1,35 @@
+# Application projects use the Argo CD API installed by the Argo CD CRDs.
+apiVersion: argoproj.io/v1alpha1
+# AppProject limits which repositories and cluster destinations applications may use.
+kind: AppProject
+metadata:
+  # All three RentOut applications reference this project name.
+  name: rentout-platform
+  # Argo CD custom resources normally live in the argocd namespace.
+  namespace: argocd
+spec:
+  # Human-readable purpose displayed in the Argo CD UI.
+  description: RentOut Project 12 Kubernetes environments
+  sourceRepos:
+    # Permit manifests only from the RentOut GitHub repository.
+    - https://github.com/Shubhankitsirvaiya/Production-Ready-AI-API-Delivery-Pipeline-Rentout-RAG-API.git
+  destinations:
+    - namespace: rentout-dev
+      # kubernetes.default.svc means the same cluster where Argo CD is installed.
+      server: https://kubernetes.default.svc
+    - namespace: rentout-test
+      server: https://kubernetes.default.svc
+    - namespace: rentout-prod
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    # Permit Namespace creation because every overlay declares its own namespace.
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    # Allow the standard namespaced resources contained in the overlays.
+    - group: "*"
+      kind: "*"
+  orphanedResources:
+    # Warn in the UI when resources exist but are no longer represented in Git.
+    warn: true
+
