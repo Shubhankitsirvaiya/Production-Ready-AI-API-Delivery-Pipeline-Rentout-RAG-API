@@ -122,6 +122,7 @@ foreach ($environment in $environmentDefinitions) {
     kubectl -n $namespace create secret generic rentout-api-secrets `
         --from-literal="OPENAI_API_KEY=$($secretValues['OPENAI_API_KEY'])" `
         --from-literal="LANGSMITH_API_KEY=$($secretValues['LANGSMITH_API_KEY'])" `
+        --from-literal="LANGSMITH_WORKSPACE_ID=$($secretValues['LANGSMITH_WORKSPACE_ID'])" `
         --dry-run=client -o yaml | kubectl apply -f -
 
     # Private GHCR packages require a token with read:packages permission.

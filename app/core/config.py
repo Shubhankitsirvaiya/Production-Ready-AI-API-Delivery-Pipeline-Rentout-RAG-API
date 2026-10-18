@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     # LangSmith endpoint can be changed for regional accounts.
     langsmith_endpoint: str = "https://api.smith.langchain.com"
 
+    # Some organization-scoped keys require an explicit destination workspace.
+    langsmith_workspace_id: str | None = None
+
     # Environment label used to distinguish local, dev, test, and prod.
     deployment_environment: str = "local"
 
