@@ -17,7 +17,7 @@ labels:
 images:
   - name: ghcr.io/shubhankitsirvaiya/rentout-rag-chatbot
     # GitHub Actions replaces this tag after every successful main build.
-    newTag: 137dedfceb3b
+    newTag: 8c8be23851bf
 patches:
   - target:
       kind: ConfigMap
