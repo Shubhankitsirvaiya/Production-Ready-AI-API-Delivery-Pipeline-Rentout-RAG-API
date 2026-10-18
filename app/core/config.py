@@ -15,6 +15,9 @@ from functools import lru_cache
 # Path gives typed path objects instead of raw strings for local folders/files.
 from pathlib import Path
 
+# Literal restricts prompt source configuration to supported values.
+from typing import Literal
+
 # load_dotenv reads key=value pairs from the local `.env` file during dev.
 from dotenv import load_dotenv
 
@@ -76,6 +79,18 @@ class Settings(BaseSettings):
 
     # Folder containing markdown prompt templates.
     prompt_dir: Path = Path("app/data/prompts")
+
+    # Select the managed LangSmith registry or packaged local markdown files.
+    prompt_source: Literal["local", "langsmith"] = "local"
+
+    # Prefix keeps this application's prompts grouped in the shared registry.
+    langsmith_prompt_prefix: str = "rentout"
+
+    # Optional commit hash pins deployments to an immutable prompt revision.
+    langsmith_prompt_commit: str | None = None
+
+    # Keep serving through a LangSmith outage by using the packaged prompt.
+    prompt_local_fallback: bool = True
 
     # Folder where JSONL audit events are written.
     audit_log_dir: Path = Path("app/data/audit_logs")

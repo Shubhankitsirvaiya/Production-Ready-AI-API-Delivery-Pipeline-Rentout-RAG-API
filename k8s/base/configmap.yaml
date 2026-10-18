@@ -20,6 +20,14 @@ data:
   DATA_DIR: "/app/app/data"
   # Prompt files stay read-only inside the image.
   PROMPT_DIR: "/app/app/data/prompts"
+  # Pull prompts from the private LangSmith registry at request time.
+  PROMPT_SOURCE: "langsmith"
+  # Prefix maps customer_chat to the LangSmith name rentout-customer-chat.
+  LANGSMITH_PROMPT_PREFIX: "rentout"
+  # Blank follows latest; overlays may pin an immutable prompt commit hash.
+  LANGSMITH_PROMPT_COMMIT: ""
+  # Keep the packaged file as a resilience fallback if LangSmith is unavailable.
+  PROMPT_LOCAL_FALLBACK: "true"
   # Audit records are written to persistent storage.
   AUDIT_LOG_DIR: "/runtime/audit_logs"
   # The generated JSON vector store is written to persistent storage.

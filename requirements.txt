@@ -13,6 +13,12 @@ pydantic-settings
 # OpenAI SDK for async chat and embedding calls.
 openai
 
+# LangSmith SDK stores and versions the application's managed prompts.
+langsmith
+
+# PromptTemplate is the serializable prompt object published to LangSmith.
+langchain-core
+
 # Reads and writes Word documents used as the demo corpus.
 python-docx
 
